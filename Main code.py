@@ -273,7 +273,50 @@ if DEBUG:
     print(f"min_error = {min_error:.6f}")
     print(f"theta[:5] = {np.round(best_theta[:5], 4)}")
 
-# Step 7: PLOT
+# 7. ROMBERG INTEGRATION FOR AREA
+def romberg_integration(f, a, b, max_steps=6):
+    """Manual implementation of Romberg integration without black-box functions"""
+    R = np.zeros((max_steps, max_steps))
+    h = b - a
+    # Initial trapezoidal rule (just endpoints)
+    R[0, 0] = 0.5 * h * (f(a) + f(b))
+
+    for i in range(1, max_steps):
+        h /= 2  # New step size
+        # Calculate new interior points
+        total = 0.0
+        num_points = 2**(i-1)
+        for k in range(1, num_points + 1):
+            x = a + (2*k - 1)*h
+            total += f(x)
+        # Update trapezoidal estimate
+        R[i, 0] = 0.5 * R[i-1, 0] + h * total
+        
+        # Richardson extrapolation
+        for j in range(1, i+1):
+            R[i, j] = R[i, j-1] + (R[i, j-1] - R[i-1, j-1])/(4**j - 1)
+    
+    return R[-1, -1]
+
+# Define the fitted function using obtained parameters
+def car_profile(x):
+    """Evaluates f(x) using the optimized parameters"""
+    x_array = np.array([x])
+    A = build_design_matrix(x_array, best_k, L, a_values)
+    return (A @ best_theta)[0]
+
+# Calculate area
+# Calculate area with Romberg (using 5 and 6 steps for error estimate)
+area_5 = romberg_integration(car_profile, 0, L, max_steps=5)
+area_6 = romberg_integration(car_profile, 0, L, max_steps=6)
+area = area_6  # Use the more accurate result
+error_estimate = abs(area_6 - area_5)  # Difference between steps 5 and 6
+
+print("\nArea Calculation Results:")
+print(f"Area under fitted curve: {area:.6f} m²")
+print(f"Romberg relative error estimate: {abs(area - romberg_integration(car_profile, 0, L, 6)):.2e}")
+
+# Step 8: PLOT
 C, d = build_constraints(best_k, L, a_values)
 x_fine = np.linspace(0, L, 100)
 A_fine = build_design_matrix(x_fine, best_k, L, a_values)
@@ -288,6 +331,10 @@ plt.figure(figsize=(12, 6))
 plt.plot(x_data, y_data, 'ro', markersize=4, label='Original Data')
 plt.plot(x_fine, y_fit, 'b-', linewidth=2, label=f'Fit (k={best_k:.2f})')
 plt.plot([0, L], [0, 0], 'kx', markersize=10, label='Constraints')
+
+plt.fill_between(x_fine, y_fit, alpha=0.2, color='cyan', label='Area')
+plt.plot([], [], ' ',  # Invisible marker
+         label=f'Area: {area:.3f} m²\nError: {error_estimate:.1e}')
 
 plt.title('Car Profile Approximation', fontsize=14)
 plt.xlabel('Length (m)', fontsize=14)
