@@ -268,7 +268,7 @@ if best_params is None:
 best_k, best_theta = best_params
 
 if DEBUG:
-    print("\n✅ Best k found:")
+    print("\nBest k found:")
     print(f"best_k = {best_k:.4f}")
     print(f"min_error = {min_error:.6f}")
     print(f"theta[:5] = {np.round(best_theta[:5], 4)}")
